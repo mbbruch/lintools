@@ -1,4 +1,4 @@
-#' Check wether a matrix is totally unimodular.
+#' Check whether a matrix is totally unimodular.
 #'
 #'
 #' A matrix for which the determinant of every square submatrix equals \eqn{-1},
@@ -29,31 +29,31 @@
 #'
 #' @export
 is_totally_unimodular <- function(A) {
-    
-    # A matrix with elements not in {-1,0,1} cannot be totally unimodular.
-    if ( !all(A %in% c(-1,0,1)) ){
-        value <- FALSE
-    }
-
-    # After reduction, A has no rows or columns containing less than 2 elements.
-    A <- reduceMatrix(A)
-    if ( length(A) == 0 ){ # if reduced to nothingness, we are ready.
-        value <- TRUE
+  
+  # A matrix with elements not in {-1,0,1} cannot be totally unimodular.
+  if ( !all(A %in% c(-1,0,1)) ){
+    return(FALSE)
+  }
+  
+  # After reduction, A has no rows or columns containing less than 2 elements.
+  A <- reduceMatrix(A)
+  if ( length(A) == 0 ){ # if reduced to nothingness, we are ready.
+    value <- TRUE
     # HT-criterium, by rows or columns
-    } else if (max(colSums(abs(A))) == 2){ 
-        value <- hellerTompkins(A)
-    } else if (max(rowSums(abs(A))) == 2){
-        value <- hellerTompkins(t(A))
+  } else if (max(colSums(abs(A))) == 2){ 
+    value <- hellerTompkins(A)
+  } else if (max(rowSums(abs(A))) == 2){
+    value <- hellerTompkins(t(A))
     # raghavachari criterium recurses over columns. Minimize effort by
     # transposition when possible.    
-    } else {                        
-        if ( nrow(A) >= ncol(A) ){ 
-            value <- raghavachari(A)
-        } else {
-            value <- raghavachari(t(A))
-        }
+  } else {                        
+    if ( nrow(A) >= ncol(A) ){ 
+      value <- raghavachari(A)
+    } else {
+      value <- raghavachari(t(A))
     }
-    return(value)
+  }
+  return(value)
 }
 
 
@@ -80,15 +80,15 @@ is_totally_unimodular <- function(A) {
 #'
 #' @keywords internal
 reduceMatrix <- function(A){
-    d1 <- c(0,0)
+  d1 <- c(0,0)
+  d <- dim(A)
+  while ( !all(d1==d) ){
+    A <- A[, colSums(abs(A)) >= 2,drop=FALSE]
+    A <- A[rowSums(abs(A)) >= 2, ,drop=FALSE]
+    d1 <- d
     d <- dim(A)
-    while ( !all(d1==d) ){
-        A <- A[, colSums(abs(A)) >= 2,drop=FALSE]
-        A <- A[rowSums(abs(A)) >= 2, ,drop=FALSE]
-        d1 <- d
-        d <- dim(A)
-    }
-    return(A)
+  }
+  return(A)
 }
 
 #' Determine if a matrix is totally unimodular using Heller and Tompkins criterium.
@@ -104,24 +104,24 @@ reduceMatrix <- function(A){
 #' @seealso \code{\link{is_totally_unimodular}}
 #' @keywords internal
 hellerTompkins <- function(A){
-    # If the matrix has columns with two elements, and those elements differ in
-    # sign for all those columns, the matrix is unimodular. 
-    if ( !any(abs(colSums(A))==2) ){ 
+  # If the matrix has columns with two elements, and those elements differ in
+  # sign for all those columns, the matrix is unimodular. 
+  if ( !any(abs(colSums(A))==2) ){ 
+    return(TRUE)
+  }
+  # Loop over ways to split a matrix in 2 by rows.
+  # Return TRUE when HT criterium is met, FALSE otherwise.
+  for ( m in 1:(nrow(A)%/%2) ){
+    I <- combn(1:nrow(A), m)
+    for ( i in 1:ncol(I)){
+      M1 <- A[I[ , i], ,drop=FALSE]
+      M2 <- A[-I[ , i], ,drop=FALSE]
+      if ( !any(abs(rowSums(M1)) == 2) && !any(abs(rowSums(M2)) == 2) ){
         return(TRUE)
+      }
     }
-    # Loop over ways to split a matrix in 2 by rows.
-    # Return TRUE when HT criterium is met, FALSE otherwise.
-    for ( m in 1:(nrow(A)%/%2) ){
-        I <- combn(1:nrow(A), m)
-        for ( i in 1:ncol(I)){
-            M1 <- A[I[ , i], ,drop=FALSE]
-            M2 <- A[-I[ , i], ,drop=FALSE]
-            if ( !any(abs(colSums(M1)) == 2) && !any(abs(colSums(M2)) == 2) ){
-                return(TRUE)
-            }
-        }
-    }
-    return(FALSE)
+  }
+  return(FALSE)
 }
 
 #' Test if a list of matrices are all unimodular
@@ -132,12 +132,12 @@ hellerTompkins <- function(A){
 #' @seealso \code{\link{is_totally_unimodular}}
 #' @keywords internal
 allTotallyUnimodular <- function(L){
-    for ( i in 1:length(L) ){
-        if ( !is_totally_unimodular(L[[i]]) ){
-            return(FALSE)
-        }
+  for ( i in 1:length(L) ){
+    if ( !is_totally_unimodular(L[[i]]) ){
+      return(FALSE)
     }
-    return(TRUE)
+  }
+  return(TRUE)
 }
 
 #' Determine if a matrix is unimodular using recursive Raghavachari criterium
@@ -149,17 +149,15 @@ allTotallyUnimodular <- function(L){
 #' @seealso \code{\link{is_totally_unimodular}}
 #' @keywords internal
 raghavachari <- function(A){
-    J <- colSums(abs(A))>=2
-    j <- which.max(colSums(abs(A[ ,J,drop=FALSE])))
-    j <- which(J)[j]
-    a_j <- A[ , j, drop=FALSE]
-    i_j <- which(a_j != 0)
-    L <- lapply(seq_along(i_j), function(i, A){
-            irow <- A[i_j[i], , drop=FALSE] 
-            A[i_j[-i],] <- A[i_j[-i], , drop=FALSE] - (A[i_j[-i], j, drop=FALSE]*irow[j]) %*% irow
-            A[, -j, drop=FALSE]
-        }, A)
-    return(allTotallyUnimodular(L))
+  J <- colSums(abs(A))>=2
+  j <- which.max(colSums(abs(A[ ,J,drop=FALSE])))
+  j <- which(J)[j]
+  a_j <- A[ , j, drop=FALSE]
+  i_j <- which(a_j != 0)
+  L <- lapply(seq_along(i_j), function(i, A){
+    irow <- A[i_j[i], , drop=FALSE] 
+    A[i_j[-i],] <- A[i_j[-i], , drop=FALSE] - (A[i_j[-i], j, drop=FALSE]*irow[j]) %*% irow
+    A[, -j, drop=FALSE]
+  }, A)
+  return(allTotallyUnimodular(L))
 }
-
-
